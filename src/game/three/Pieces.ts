@@ -1,10 +1,52 @@
 import * as THREE from 'three';
-import { PIECE_COUNT, pieceGeometry } from '../puzzle';
+import { PIECE_COUNT } from '../puzzle';
 import { PHRASES } from '../song';
 import { pieceSpot } from './Ocean';
 
 const PIECE_WIDTH = 7;
 const FLY_TIME = 1.3;
+
+/** A small seeded PRNG so each lump is asymmetric but stable across sessions. */
+function mulberry(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** An unidentified mass — a noise-displaced, slightly flattened lump. Nothing about it should read as "puzzle piece". */
+function lumpGeometry(seed: number, radius: number): THREE.BufferGeometry {
+  const geo = new THREE.IcosahedronGeometry(radius, 3);
+  const pos = geo.attributes['position']!;
+  const rnd = mulberry(seed);
+  const f1 = 1.6 + rnd() * 1.6;
+  const f2 = 2.4 + rnd() * 2.2;
+  const f3 = 1.9 + rnd() * 1.7;
+  const p1 = rnd() * 20;
+  const p2 = rnd() * 20;
+  const p3 = rnd() * 20;
+  const squash = 0.72 + rnd() * 0.18;
+  for (let k = 0; k < pos.count; k++) {
+    const x = pos.getX(k);
+    const y = pos.getY(k);
+    const z = pos.getZ(k);
+    const len = Math.hypot(x, y, z) || 1;
+    const nx = x / len;
+    const ny = y / len;
+    const nz = z / len;
+    const n =
+      Math.sin(nx * f1 + p1) * Math.cos(ny * f2 + p2) * 0.6 +
+      Math.sin(nz * f3 + p3) * Math.cos(nx * f2 - p1) * 0.4;
+    const s = 1 + n * 0.4;
+    pos.setXYZ(k, x * s, y * s * squash, z * s);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 
 type Item = {
   root: THREE.Group;
@@ -44,10 +86,7 @@ export class PuzzlePieces {
   readonly group = new THREE.Group();
   private items: Item[] = [];
 
-  constructor(art: HTMLCanvasElement) {
-    const tex = new THREE.CanvasTexture(art);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
+  constructor() {
     const glow = glowTexture();
     const beamGeo = new THREE.CylinderGeometry(0.9, 2.4, 90, 16, 1, true);
     beamGeo.translate(0, 45, 0);
@@ -59,14 +98,13 @@ export class PuzzlePieces {
       root.position.copy(base);
 
       const mesh = new THREE.Mesh(
-        pieceGeometry(i, PIECE_WIDTH),
+        lumpGeometry(i * 977 + 13, PIECE_WIDTH * 0.6),
         new THREE.MeshStandardMaterial({
-          map: tex,
-          emissive: 0xffffff,
-          emissiveMap: tex,
-          emissiveIntensity: 0.75,
-          roughness: 0.35,
-          metalness: 0.05,
+          color: color.clone().multiplyScalar(0.3),
+          emissive: color,
+          emissiveIntensity: 0.2,
+          roughness: 0.6,
+          metalness: 0.1,
         }),
       );
       root.add(mesh);
@@ -169,6 +207,7 @@ export class PuzzlePieces {
         it.haloMat.opacity = 0.6 + pulse * 0.35;
         it.halo.scale.setScalar(19 + pulse * 5);
         it.light.intensity = 85 + pulse * 45;
+        it.mesh.scale.setScalar(1 + pulse * 0.07);
         continue;
       }
       if (it.flyStart < 0) continue;

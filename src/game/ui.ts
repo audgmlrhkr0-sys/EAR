@@ -30,11 +30,9 @@ export class TitleOverlay {
     this.root.appendChild(bubbleField(18));
     const inner = el('div', 'title-inner');
     inner.appendChild(el('h1', 'title-main', 'EAR'));
-    inner.appendChild(el('div', 'title-sub', '바다가 잃어버린 노래'));
-    const btn = el('button', 'title-start', '귀 기울이기');
+    const btn = el('button', 'title-start', 'START');
     btn.addEventListener('click', () => this.onStart?.());
     inner.appendChild(btn);
-    inner.appendChild(el('div', 'title-keys', 'WASD · MOUSE · SPACE / SHIFT'));
     this.root.appendChild(inner);
   }
 
@@ -70,6 +68,7 @@ export class Hud {
     panel.appendChild(this.replay);
     this.root.appendChild(panel);
     this.root.appendChild(el('div', 'hud-reticle'));
+    this.root.appendChild(el('div', 'hud-keys', 'WASD · MOUSE · SPACE / SHIFT'));
   }
 
   mount(host: HTMLElement): void {
@@ -116,21 +115,16 @@ export class SubtitleOverlay {
   }
 }
 
-/** The moment a piece is caught: it rises before you while its phrase plays, then drifts into the board. */
+/** The moment a piece is caught: it rises before you, then drifts into the board. No words — just the piece. */
 export class PickupOverlay {
   readonly root = el('div', 'pickup gone');
   private card = el('div', 'pickup-card');
-  private title = el('div', 'pickup-title');
-  private line = el('div', 'pickup-line');
   private art: HTMLCanvasElement;
   private timer = 0;
 
   constructor(art: HTMLCanvasElement) {
     this.art = art;
     this.root.appendChild(this.card);
-    this.root.appendChild(this.title);
-    this.root.appendChild(this.line);
-    this.root.appendChild(el('div', 'pickup-notes'));
   }
 
   mount(host: HTMLElement): void {
@@ -141,8 +135,6 @@ export class PickupOverlay {
     window.clearTimeout(this.timer);
     this.card.replaceChildren(renderPiece(this.art, i, 320));
     this.card.style.setProperty('--glow', PHRASES[i]!.color);
-    this.title.textContent = PHRASES[i]!.title;
-    this.line.textContent = PHRASES[i]!.line;
     this.root.classList.remove('gone', 'leave');
     void this.root.offsetWidth;
     this.root.classList.add('enter');
@@ -165,7 +157,6 @@ export class FinaleOverlay {
   readonly root = el('div', 'finale gone');
   private board = el('div', 'finale-board');
   private full = el('img', 'finale-full');
-  private line = el('div', 'finale-line');
   private end = el('div', 'finale-end gone');
   private pieces: HTMLCanvasElement[] = [];
   private onReplay: (() => void) | null = null;
@@ -190,13 +181,11 @@ export class FinaleOverlay {
     }
     this.board.appendChild(this.full);
     this.root.appendChild(this.board);
-    this.root.appendChild(this.line);
 
-    this.end.appendChild(el('div', 'finale-title', '노래가, 돌아왔다.'));
     const buttons = el('div', 'finale-buttons');
-    const again = el('button', '', '다시 듣기');
+    const again = el('button', '', 'REPLAY');
     again.addEventListener('click', () => this.onReplay?.());
-    const home = el('button', '', '처음으로');
+    const home = el('button', '', 'RESTART');
     home.addEventListener('click', () => this.onRestart?.());
     buttons.append(again, home);
     this.end.appendChild(buttons);
@@ -215,7 +204,6 @@ export class FinaleOverlay {
   open(): void {
     this.root.classList.remove('gone', 'assembled', 'complete');
     this.end.classList.add('gone');
-    this.line.textContent = '';
     this.pieces.forEach((p) => {
       p.classList.remove('singing', 'sung');
       p.style.setProperty('--dx', `${(Math.random() - 0.5) * 140}vw`);
@@ -233,21 +221,10 @@ export class FinaleOverlay {
       p.classList.toggle('singing', k === i);
       if (k < i) p.classList.add('sung');
     });
-    if (i < PIECE_COUNT) {
-      this.setLine(PHRASES[i]!.line);
-    } else {
+    if (i >= PIECE_COUNT) {
       this.pieces.forEach((p) => p.classList.add('sung'));
       this.root.classList.add('complete');
-      this.setLine('');
     }
-  }
-
-  private setLine(text: string): void {
-    this.line.classList.remove('show');
-    window.setTimeout(() => {
-      this.line.textContent = text;
-      if (text) this.line.classList.add('show');
-    }, 500);
   }
 
   replay(): void {

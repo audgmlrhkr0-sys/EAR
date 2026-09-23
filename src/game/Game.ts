@@ -13,8 +13,9 @@ import { FinaleOverlay, Hud, PickupOverlay, SubtitleOverlay, TitleOverlay } from
 
 type Scene = 'TITLE' | 'SWIM' | 'FINALE';
 
-/** Internal render height; width follows the window's aspect. Low-res on purpose, like DREAM. */
-const RENDER_H = 480;
+/** Fixed internal render resolution — the canvas sits centered with margin, like DREAM. */
+const VIEW_W = 960;
+const VIEW_H = 540;
 const PICKUP_RADIUS = 6.5;
 const BEACON_RANGE = 170;
 const IDLE_RESET_MS = 5 * 60 * 1000;
@@ -69,15 +70,19 @@ export class Game {
     host.appendChild(canvas);
 
     this.ocean = new Ocean();
-    this.pieces = new PuzzlePieces(this.art);
+    this.pieces = new PuzzlePieces();
     this.ocean.scene.add(this.pieces.group);
-    this.rig = new SwimRig(canvas, window.innerWidth / window.innerHeight);
+    this.rig = new SwimRig(canvas, VIEW_W / VIEW_H);
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.ocean.scene, this.rig.camera));
     this.composer.addPass(new OutputPass());
-    this.dream = new DreamPass(512, RENDER_H);
+    this.dream = new DreamPass(VIEW_W, VIEW_H);
     this.composer.addPass(this.dream);
+
+    this.renderer.setSize(VIEW_W, VIEW_H, false);
+    this.composer.setSize(VIEW_W, VIEW_H);
+    this.dream.setResolution(VIEW_W, VIEW_H);
 
     this.subtitle.mount(host);
     this.hud.mount(host);
@@ -94,21 +99,10 @@ export class Game {
 
     this.placeAtStart();
     this.wireInput();
-    window.addEventListener('resize', this.resize);
-    this.resize();
 
     this.lastTime = performance.now();
     requestAnimationFrame(this.loop);
   }
-
-  private resize = (): void => {
-    const aspect = window.innerWidth / Math.max(1, window.innerHeight);
-    const w = Math.round(RENDER_H * aspect);
-    this.renderer.setSize(w, RENDER_H, false);
-    this.composer.setSize(w, RENDER_H);
-    this.dream.setResolution(w, RENDER_H);
-    this.rig.setAspect(aspect);
-  };
 
   private loop = (now: number): void => {
     const dt = Math.min(0.05, (now - this.lastTime) / 1000);
@@ -201,7 +195,7 @@ export class Game {
     if (p.y > CEILING_Y) {
       p.y = CEILING_Y;
       if (v.y > 0) v.y = 0;
-      if (!this.edgeWarned) this.subtitle.show('위로는, 아직 아니야.', 2800);
+      if (!this.edgeWarned) this.subtitle.show('Not yet.', 2800);
       this.edgeWarned = true;
     }
     const dx = p.x - WORLD_CENTER.x;
@@ -213,7 +207,7 @@ export class Game {
       p.z = WORLD_CENTER.y + dz * k;
       v.x *= 0.4;
       v.z *= 0.4;
-      if (!this.edgeWarned) this.subtitle.show('더 가면, 돌아오지 못해.', 2800);
+      if (!this.edgeWarned) this.subtitle.show('Go no further.', 2800);
       this.edgeWarned = true;
     }
   }
@@ -267,7 +261,6 @@ export class Game {
     this.rig.enabled = false;
     this.rig.releaseLock();
     this.hud.setVisible(false);
-    this.subtitle.show('전부 모였다. 이제, 끝까지 들어.', 3600);
     audio.setAmbience(0.45, 5);
     await wait(4600);
     if (run !== this.runId) return;

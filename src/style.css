@@ -33,19 +33,24 @@ body {
   height: 100%;
   position: relative;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: radial-gradient(ellipse at 50% 15%, #10182a 0%, var(--ink) 78%);
 }
 
 .game-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   display: block;
+  max-width: 92vw;
+  max-height: 88vh;
+  width: auto;
+  height: auto;
   outline: none;
   cursor: crosshair;
   z-index: 1;
   image-rendering: pixelated;
+  border: 1px solid rgba(220, 208, 214, 0.14);
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(0, 0, 0, 0.6);
   filter: saturate(0.88) contrast(1.08) brightness(0.98);
   animation: canvas-breathe 8s ease-in-out infinite;
 }
@@ -159,14 +164,6 @@ button {
   96% { opacity: 0.9; }
 }
 
-.title-sub {
-  font-family: var(--serif);
-  font-size: clamp(0.9rem, 2vw, 1.2rem);
-  letter-spacing: 0.24em;
-  color: var(--rose);
-  opacity: 0.85;
-}
-
 .title-start {
   margin-top: 1.4rem;
   font-size: 0.95rem;
@@ -183,13 +180,6 @@ button {
   border-color: var(--blood);
   color: var(--rose);
   letter-spacing: 0.36em;
-}
-
-.title-keys {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  color: rgba(220, 208, 214, 0.35);
 }
 
 /* —— Subtitle —— */
@@ -283,6 +273,16 @@ button {
   background: rgba(220, 208, 214, 0.4);
 }
 
+.hud-keys {
+  position: absolute;
+  left: 2.2vw;
+  bottom: 2.2vh;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: rgba(220, 208, 214, 0.28);
+}
+
 /* —— Pickup —— */
 .pickup {
   position: absolute;
@@ -308,37 +308,8 @@ button {
   display: block;
 }
 
-.pickup-title,
-.pickup-line {
-  font-family: var(--serif);
-  text-align: center;
-  color: var(--bone);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-}
-
-.pickup-title {
-  font-size: clamp(0.95rem, 1.9vw, 1.2rem);
-  letter-spacing: 0.24em;
-  opacity: 0.9;
-}
-
-.pickup-line {
-  font-size: clamp(0.8rem, 1.5vw, 1rem);
-  letter-spacing: 0.05em;
-  color: var(--rose);
-  opacity: 0.85;
-}
-
 .pickup.enter .pickup-card {
   animation: card-in 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) both, card-bob 4s ease-in-out 1.2s infinite;
-}
-
-.pickup.enter .pickup-title {
-  animation: text-in 1s ease 0.4s both;
-}
-
-.pickup.enter .pickup-line {
-  animation: text-in 1s ease 0.9s both;
 }
 
 @keyframes card-in {
@@ -440,23 +411,6 @@ button {
   opacity: 1;
 }
 
-.finale-line {
-  min-height: 2em;
-  font-family: var(--serif);
-  font-size: clamp(0.95rem, 1.9vw, 1.2rem);
-  letter-spacing: 0.06em;
-  color: var(--rose);
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
-  opacity: 0;
-  filter: blur(5px);
-  transition: opacity 1.2s ease, filter 1.2s ease;
-}
-
-.finale-line.show {
-  opacity: 0.9;
-  filter: blur(0);
-}
-
 .finale-end {
   position: absolute;
   bottom: 9vh;
@@ -467,14 +421,6 @@ button {
   text-align: center;
   transition: opacity 2.4s ease;
   z-index: 4;
-}
-
-.finale-title {
-  font-family: var(--serif);
-  font-size: clamp(1.2rem, 2.6vw, 1.7rem);
-  letter-spacing: 0.24em;
-  color: var(--bone);
-  text-shadow: 0 0 20px rgba(138, 74, 92, 0.5);
 }
 
 .finale-buttons {
