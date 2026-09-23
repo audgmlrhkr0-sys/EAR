@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-export const FOG_COLOR = new THREE.Color('#2d5f93');
-export const FOG_DENSITY = 0.0095;
+export const FOG_COLOR = new THREE.Color('#0e1830');
+export const FOG_DENSITY = 0.0115;
 export const SURFACE_Y = 66;
 export const CEILING_Y = 52;
 export const WORLD_CENTER = new THREE.Vector2(0, -100);
@@ -124,8 +124,8 @@ export class Ocean {
     this.scene.background = FOG_COLOR.clone();
     this.scene.fog = new THREE.FogExp2(FOG_COLOR, FOG_DENSITY);
 
-    this.scene.add(new THREE.HemisphereLight('#cdeaff', '#2c2350', 1.1));
-    const sun = new THREE.DirectionalLight('#eaf6ff', 1.4);
+    this.scene.add(new THREE.HemisphereLight('#7d93ad', '#120f22', 0.75));
+    const sun = new THREE.DirectionalLight('#a9b8cc', 0.85);
     sun.position.set(30, 100, 20);
     this.scene.add(sun);
 
@@ -154,9 +154,9 @@ export class Ocean {
       fog: false,
       uniforms: {
         uTime: this.time,
-        uTop: { value: new THREE.Color('#b9e3fb') },
+        uTop: { value: new THREE.Color('#3a4a63') },
         uHorizon: { value: FOG_COLOR },
-        uBottom: { value: new THREE.Color('#0b1335') },
+        uBottom: { value: new THREE.Color('#050810') },
       },
       vertexShader: /* glsl */ `
         varying vec3 vDir;
@@ -173,10 +173,10 @@ export class Ocean {
         void main() {
           float y = vDir.y;
           vec3 col = y > 0.0 ? mix(uHorizon, uTop, pow(y, 0.7)) : mix(uHorizon, uBottom, pow(-y, 0.55));
-          col += vec3(0.9, 0.95, 1.0) * pow(max(0.0, y), 7.0) * 0.8;
+          col += vec3(0.5, 0.55, 0.62) * pow(max(0.0, y), 9.0) * 0.4;
           float a = atan(vDir.z, vDir.x);
           float rays = sin(a * 23.0 + uTime * 0.2) * sin(a * 37.0 - uTime * 0.13);
-          col += vec3(0.55, 0.8, 1.0) * max(0.0, rays) * pow(max(0.0, y), 2.0) * 0.18;
+          col += vec3(0.25, 0.35, 0.45) * max(0.0, rays) * pow(max(0.0, y), 2.0) * 0.1;
           gl_FragColor = vec4(col, 1.0);
         }`,
     });
@@ -203,7 +203,7 @@ export class Ocean {
           float c = caustic(vWorld.xz * 0.6, uTime * 0.4);
           float d = distance(cameraPosition.xz, vWorld.xz);
           float fade = exp(-d * 0.006);
-          vec3 col = vec3(0.5, 0.78, 1.0) * (0.14 + c * 0.9);
+          vec3 col = vec3(0.22, 0.34, 0.42) * (0.1 + c * 0.55);
           gl_FragColor = vec4(col * fade, 1.0);
         }`,
     });
@@ -233,15 +233,15 @@ export class Ocean {
         varying vec3 vWorld;
         varying vec3 vNormal;
         void main() {
-          vec3 deep = vec3(0.10, 0.08, 0.26);
-          vec3 sand = vec3(0.72, 0.60, 0.68);
+          vec3 deep = vec3(0.03, 0.025, 0.08);
+          vec3 sand = vec3(0.26, 0.22, 0.26);
           vec3 base = mix(deep, sand, smoothstep(-34.0, -8.0, vWorld.y));
           float rip = sin(vWorld.x * 0.9 + sin(vWorld.z * 0.3) * 2.0) * 0.5 + 0.5;
           base *= 0.9 + rip * 0.1;
           float lambert = clamp(dot(normalize(vNormal), normalize(vec3(0.3, 1.0, 0.2))), 0.0, 1.0);
-          vec3 col = base * (0.3 + 0.7 * lambert);
+          vec3 col = base * (0.2 + 0.55 * lambert);
           float c = caustic(vWorld.xz, uTime * 0.5);
-          col += vec3(0.7, 0.92, 1.0) * c * 0.6 * smoothstep(-42.0, -6.0, vWorld.y);
+          col += vec3(0.25, 0.34, 0.4) * c * 0.35 * smoothstep(-42.0, -6.0, vWorld.y);
           col = applyFog(col, distance(cameraPosition, vWorld));
           gl_FragColor = vec4(col, 1.0);
         }`,
@@ -312,10 +312,10 @@ export class Ocean {
         varying float vT;
         varying vec3 vWorld;
         void main() {
-          vec3 col = mix(vec3(0.02, 0.07, 0.10), vec3(0.22, 0.55, 0.42), vT);
+          vec3 col = mix(vec3(0.01, 0.02, 0.03), vec3(0.09, 0.22, 0.18), vT);
           float glow = smoothstep(0.75, 1.0, vT) * (0.5 + 0.5 * sin(uTime * 1.3 + vWorld.x * 0.2));
-          col += vec3(0.4, 0.8, 0.6) * glow * 0.45;
-          col += vec3(0.3, 0.5, 0.5) * caustic(vWorld.xz + vWorld.y * 0.3, uTime * 0.5) * 0.25;
+          col += vec3(0.18, 0.4, 0.3) * glow * 0.35;
+          col += vec3(0.12, 0.2, 0.22) * caustic(vWorld.xz + vWorld.y * 0.3, uTime * 0.5) * 0.2;
           col = applyFog(col, distance(cameraPosition, vWorld));
           gl_FragColor = vec4(col, 1.0);
         }`,
@@ -334,7 +334,7 @@ export class Ocean {
       p.setXYZ(k, x * s, y * s, z * s);
     }
     geo.computeVertexNormals();
-    const mat = new THREE.MeshStandardMaterial({ color: '#7670ad', roughness: 0.95, flatShading: true });
+    const mat = new THREE.MeshStandardMaterial({ color: '#2e2a3f', roughness: 0.95, flatShading: true });
     const count = 70;
     const rocks = new THREE.InstancedMesh(geo, mat, count);
     for (let k = 0; k < count; k++) {
@@ -351,7 +351,7 @@ export class Ocean {
   }
 
   private buildCoral(): void {
-    const palette = ['#ff9ec8', '#ffc4a8', '#c6a8ff', '#9ee8ff', '#fff0a8'].map((c) => new THREE.Color(c));
+    const palette = ['#7a3a52', '#6b4a3a', '#4a3a6b', '#3a5a68', '#6b5a38'].map((c) => new THREE.Color(c));
     const parts: THREE.BufferGeometry[] = [];
     for (let k = 0; k < 42; k++) {
       const cx = WORLD_CENTER.x + (this.rnd() - 0.5) * 400;
@@ -379,9 +379,9 @@ export class Ocean {
     }
     const mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.6,
-      emissive: '#3b1d4d',
-      emissiveIntensity: 0.6,
+      roughness: 0.7,
+      emissive: '#1a0f22',
+      emissiveIntensity: 0.4,
     });
     this.scene.add(new THREE.Mesh(mergeGeometries(parts), mat));
   }
@@ -391,11 +391,11 @@ export class Ocean {
     const at = pieceSpot(2);
     const floor = seabedHeight(at.x, at.z);
     const mat = new THREE.MeshStandardMaterial({
-      color: '#e8dcf6',
-      roughness: 0.35,
+      color: '#7c7188',
+      roughness: 0.45,
       metalness: 0.1,
-      emissive: '#3a2a58',
-      emissiveIntensity: 0.5,
+      emissive: '#1c1526',
+      emissiveIntensity: 0.35,
       side: THREE.DoubleSide,
     });
     const shellGeo = (): THREE.BufferGeometry => {
@@ -440,11 +440,11 @@ export class Ocean {
     const at = pieceSpot(4);
     const floor = seabedHeight(at.x, at.z);
     const mat = new THREE.MeshStandardMaterial({
-      color: '#bab1dc',
+      color: '#4a4658',
       roughness: 0.9,
       flatShading: true,
-      emissive: '#1f1838',
-      emissiveIntensity: 0.4,
+      emissive: '#0d0a16',
+      emissiveIntensity: 0.3,
     });
     const group = new THREE.Group();
     group.position.set(at.x, floor, at.z);
@@ -482,10 +482,10 @@ export class Ocean {
     const at = pieceSpot(5);
     const floor = seabedHeight(at.x, at.z);
     const mat = new THREE.MeshStandardMaterial({
-      color: '#f1e8df',
-      roughness: 0.7,
-      emissive: '#40354a',
-      emissiveIntensity: 0.5,
+      color: '#8c8478',
+      roughness: 0.75,
+      emissive: '#1a1520',
+      emissiveIntensity: 0.3,
     });
     const group = new THREE.Group();
     group.position.set(at.x, floor + 1.2, at.z);
@@ -563,7 +563,7 @@ export class Ocean {
   }
 
   private buildJellies(): void {
-    const colors = ['#ffb8e6', '#c5b5ff', '#a8e6ff', '#ffd9f2'].map((c) => new THREE.Color(c));
+    const colors = ['#8a4a5c', '#5a4a7c', '#3a6a72', '#6a5a3a'].map((c) => new THREE.Color(c));
     const grove = pieceSpot(3);
     for (let k = 0; k < 16; k++) {
       const a = this.rnd() * Math.PI * 2;
@@ -582,7 +582,7 @@ export class Ocean {
   private buildFish(): void {
     const geo = new THREE.ConeGeometry(0.32, 1.4, 5);
     geo.rotateX(Math.PI / 2);
-    const mat = new THREE.MeshStandardMaterial({ color: '#ffe7c4', emissive: '#6a4a7a', emissiveIntensity: 0.6, roughness: 0.4 });
+    const mat = new THREE.MeshStandardMaterial({ color: '#786860', emissive: '#241a2a', emissiveIntensity: 0.4, roughness: 0.5 });
     const centers: [number, number, number][] = [
       [20, -40, 6],
       [80, -120, 9],
@@ -610,7 +610,7 @@ export class Ocean {
 
   /** Far away and huge, only ever a silhouette in the fog. */
   private buildWhale(): void {
-    const mat = new THREE.MeshStandardMaterial({ color: '#233a70', roughness: 0.8 });
+    const mat = new THREE.MeshStandardMaterial({ color: '#0e1522', roughness: 0.85 });
     this.whale = new THREE.Group();
     const body = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), mat);
     body.scale.set(6, 5, 24);
@@ -639,7 +639,7 @@ export class Ocean {
     const col = new Float32Array(count * 3);
     const phase = new Float32Array(count);
     const size = new Float32Array(count);
-    const palette = ['#ffd6ec', '#b6f0e0', '#c9b8ff', '#9fdcff', '#ffe9b0'].map((c) => new THREE.Color(c));
+    const palette = ['#caa0ab', '#5f8f7f', '#9c8ec2', '#6fa0b8', '#b6935f'].map((c) => new THREE.Color(c));
     for (let k = 0; k < count; k++) {
       const x = WORLD_CENTER.x + (this.rnd() - 0.5) * 440;
       const z = WORLD_CENTER.y + (this.rnd() - 0.5) * 440;
@@ -722,7 +722,7 @@ export class Ocean {
         void main() {
           float d = length(gl_PointCoord - 0.5);
           float a = smoothstep(0.5, 0.1, d) * vAlpha;
-          gl_FragColor = vec4(vec3(0.85, 0.92, 1.0) * a, 1.0);
+          gl_FragColor = vec4(vec3(0.4, 0.44, 0.5) * a, 1.0);
         }`,
     });
     this.snow = new THREE.Points(geo, mat);
@@ -785,7 +785,7 @@ export class Ocean {
           float ring = smoothstep(0.5, 0.4, d) * (0.25 + smoothstep(0.25, 0.45, d));
           vec2 hl = gl_PointCoord - vec2(0.35, 0.3);
           ring += smoothstep(0.12, 0.0, length(hl)) * 0.8;
-          gl_FragColor = vec4(vec3(0.85, 0.95, 1.0) * ring * vAlpha, 1.0);
+          gl_FragColor = vec4(vec3(0.35, 0.4, 0.44) * ring * vAlpha, 1.0);
         }`,
     });
     const pts = new THREE.Points(geo, mat);
@@ -822,8 +822,8 @@ export class Ocean {
             float vert = smoothstep(0.0, 0.4, vUv.y) * smoothstep(1.0, 0.75, vUv.y);
             float flick = 0.55 + 0.45 * sin(uTime * 0.45 + uSeed * 6.0);
             float near = smoothstep(4.0, 30.0, vDist) * exp(-vDist * 0.006);
-            float a = edge * edge * vert * flick * near * 0.13;
-            gl_FragColor = vec4(vec3(0.72, 0.9, 1.0) * a, 1.0);
+            float a = edge * edge * vert * flick * near * 0.09;
+            gl_FragColor = vec4(vec3(0.3, 0.36, 0.42) * a, 1.0);
           }`,
       });
       const ray = new THREE.Mesh(geo, mat);

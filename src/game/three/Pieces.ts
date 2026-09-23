@@ -80,10 +80,10 @@ export class PuzzlePieces {
         fog: false,
       });
       const halo = new THREE.Sprite(haloMat);
-      halo.scale.setScalar(18);
+      halo.scale.setScalar(22);
       root.add(halo);
 
-      const light = new THREE.PointLight(color, 70, 55, 1.5);
+      const light = new THREE.PointLight(color, 110, 68, 1.4);
       root.add(light);
 
       const beamMat = new THREE.ShaderMaterial({
@@ -106,7 +106,7 @@ export class PuzzlePieces {
           varying vec2 vUv;
           void main() {
             float a = pow(1.0 - vUv.y, 1.6) * (0.75 + 0.25 * sin(uTime * 2.0 + vUv.y * 12.0));
-            gl_FragColor = vec4(uColor * a * 0.28 * uFade, 1.0);
+            gl_FragColor = vec4(uColor * a * 0.4 * uFade, 1.0);
           }`,
       });
       const beam = new THREE.Mesh(beamGeo, beamMat);
@@ -166,9 +166,9 @@ export class PuzzlePieces {
         it.mesh.rotation.x = Math.sin(t * 0.7 + it.phase) * 0.25;
         it.root.position.y = it.base.y + Math.sin(t * 1.1 + it.phase) * 0.6;
         const pulse = 0.5 + 0.5 * Math.sin(t * 2.2 + it.phase);
-        it.haloMat.opacity = 0.55 + pulse * 0.35;
-        it.halo.scale.setScalar(16 + pulse * 4);
-        it.light.intensity = 55 + pulse * 30;
+        it.haloMat.opacity = 0.6 + pulse * 0.35;
+        it.halo.scale.setScalar(19 + pulse * 5);
+        it.light.intensity = 85 + pulse * 45;
         continue;
       }
       if (it.flyStart < 0) continue;

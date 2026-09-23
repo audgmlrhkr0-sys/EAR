@@ -27,16 +27,14 @@ export class TitleOverlay {
   private onStart: (() => void) | null = null;
 
   constructor() {
-    this.root.appendChild(bubbleField(34));
+    this.root.appendChild(bubbleField(18));
     const inner = el('div', 'title-inner');
-    inner.appendChild(el('div', 'title-kicker', 'a song, scattered under the sea'));
     inner.appendChild(el('h1', 'title-main', 'EAR'));
     inner.appendChild(el('div', 'title-sub', '바다가 잃어버린 노래'));
     const btn = el('button', 'title-start', '귀 기울이기');
     btn.addEventListener('click', () => this.onStart?.());
     inner.appendChild(btn);
-    inner.appendChild(el('div', 'title-hint', '여섯 개의 조각을 주우면 한 곡의 노래가 완성돼요'));
-    inner.appendChild(el('div', 'title-keys', 'WASD 헤엄 · 마우스 시선 · SPACE 위로 · SHIFT 아래로'));
+    inner.appendChild(el('div', 'title-keys', 'WASD · MOUSE · SPACE / SHIFT'));
     this.root.appendChild(inner);
   }
 
@@ -61,10 +59,8 @@ export class Hud {
   readonly root = el('div', 'hud gone');
   private board = el('canvas', 'hud-board');
   private count = el('div', 'hud-count');
-  private hint = el('div', 'hud-hint');
-  private replay = el('div', 'hud-replay', '1 – 6  모은 소절 다시 듣기');
+  private replay = el('div', 'hud-replay', '1–6');
   private art: HTMLCanvasElement;
-  private hintText = '';
 
   constructor(art: HTMLCanvasElement) {
     this.art = art;
@@ -73,7 +69,6 @@ export class Hud {
     panel.appendChild(this.count);
     panel.appendChild(this.replay);
     this.root.appendChild(panel);
-    this.root.appendChild(this.hint);
     this.root.appendChild(el('div', 'hud-reticle'));
   }
 
@@ -95,16 +90,6 @@ export class Hud {
       void this.board.offsetWidth;
       this.board.classList.add('pulse');
     }
-  }
-
-  setHint(text: string): void {
-    if (text === this.hintText) return;
-    this.hintText = text;
-    this.hint.classList.remove('show');
-    window.setTimeout(() => {
-      this.hint.textContent = text;
-      if (text) this.hint.classList.add('show');
-    }, 400);
   }
 }
 
@@ -187,7 +172,7 @@ export class FinaleOverlay {
   private onRestart: (() => void) | null = null;
 
   constructor(art: HTMLCanvasElement) {
-    this.root.appendChild(bubbleField(26));
+    this.root.appendChild(bubbleField(14));
     this.full.src = art.toDataURL();
     this.full.alt = '';
     for (let i = 0; i < PIECE_COUNT; i++) {
@@ -207,8 +192,7 @@ export class FinaleOverlay {
     this.root.appendChild(this.board);
     this.root.appendChild(this.line);
 
-    this.end.appendChild(el('div', 'finale-title', '노래가 완성되었어요'));
-    this.end.appendChild(el('div', 'finale-sub', '바다는 이 노래를 오래 잊고 있었어요. 이제 당신의 귀에 남아 있어요.'));
+    this.end.appendChild(el('div', 'finale-title', '노래가, 돌아왔다.'));
     const buttons = el('div', 'finale-buttons');
     const again = el('button', '', '다시 듣기');
     again.addEventListener('click', () => this.onReplay?.());

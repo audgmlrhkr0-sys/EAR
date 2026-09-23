@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
-/** Pearl-and-tide palette the image is softly pulled toward. */
-const PALETTE = ['#141a3a', '#2c3470', '#3f6fb0', '#6fc3d6', '#a9ecdf', '#b9a6e8', '#f2c6e0', '#fbf1f5'];
+/** Same forced palette as DREAM/CALL — the sea gets pulled into it too. */
+const PALETTE = ['#0a0810', '#2e2a44', '#3a3a5c', '#6b6ba8', '#9cc5de', '#8a4a5c', '#e8899a', '#f2c4b5'];
 
 const VERTEX = /* glsl */ `
 varying vec2 vUv;
@@ -17,7 +17,7 @@ varying vec2 vUv;
 uniform sampler2D tDiffuse;
 uniform vec2 uResolution;
 uniform float uTime;
-uniform float uWave;
+uniform float uGlitch;
 uniform float uAberration;
 uniform float uPaletteMix;
 uniform float uFlash;
@@ -51,10 +51,13 @@ float hash(vec2 p) {
 }
 
 void main() {
-  vec2 uv = vUv;
-  // Everything wavers a little, as if seen through moving water.
-  uv.x += sin(uv.y * 16.0 + uTime * 1.2) * 0.0016 * uWave;
-  uv.y += sin(uv.x * 12.0 - uTime * 0.9) * 0.0013 * uWave;
+  // Pixelate: snap the sample point to a coarse grid — the "8-bit" step.
+  vec2 px = uResolution / 3.0;
+  vec2 uv = floor(vUv * px) / px + 0.5 / px;
+
+  // Rare VHS-style row glitch, not a smooth melt.
+  float glitchLine = step(0.996, hash(vec2(floor(uv.y * 90.0), floor(uTime * 6.0))));
+  uv.x += glitchLine * (hash(vec2(floor(uTime * 6.0), 3.1)) - 0.5) * 0.05 * uGlitch;
 
   vec2 c = uv - 0.5;
   float r2 = dot(c, c);
@@ -64,18 +67,21 @@ void main() {
   col.g = texture2D(tDiffuse, uv).g;
   col.b = texture2D(tDiffuse, uv - off).b;
 
-  // Milky lift in the shadows — the haze that makes it feel remembered, not seen.
-  col = col * vec3(0.94, 0.98, 1.06) + vec3(0.03, 0.035, 0.06);
+  // Crushed, sunless — no lift, just weight.
+  col = col * vec3(0.92, 0.94, 1.0) - vec3(0.01);
 
   float th = bayer8(vUv * uResolution) - 0.5;
-  vec3 q = nearestPal(col + th * 0.11);
+  vec3 q = nearestPal(col + th * 0.16);
   col = mix(col, q, uPaletteMix);
 
-  col += (hash(vUv * uResolution + fract(uTime) * 91.0) - 0.5) * 0.035;
+  col += (hash(vUv * uResolution + fract(uTime) * 91.0) - 0.5) * 0.045;
 
-  float vig = smoothstep(0.9, 0.22, length(c * vec2(1.05, 1.0)));
-  col *= mix(0.5, 1.0, vig);
-  col += uFlash * vec3(0.95, 0.93, 1.0) * (1.0 - r2 * 1.5);
+  // Scanlines, like an old CRT that shouldn't still be running.
+  col *= 0.9 + 0.1 * sin(vUv.y * uResolution.y * 3.14159);
+
+  float vig = smoothstep(0.95, 0.15, length(c * vec2(1.05, 1.0)));
+  col *= mix(0.32, 1.0, vig);
+  col += uFlash * vec3(0.95, 0.8, 0.82) * (1.0 - r2 * 1.5);
 
   gl_FragColor = vec4(col, 1.0);
 }
@@ -88,9 +94,9 @@ export class DreamPass extends ShaderPass {
         tDiffuse: { value: null },
         uResolution: { value: new THREE.Vector2(width, height) },
         uTime: { value: 0 },
-        uWave: { value: 1 },
-        uAberration: { value: 0.006 },
-        uPaletteMix: { value: 0.3 },
+        uGlitch: { value: 1 },
+        uAberration: { value: 0.0045 },
+        uPaletteMix: { value: 0.62 },
         uFlash: { value: 0 },
         uPal: {
           value: PALETTE.map((hex) => {
@@ -116,7 +122,8 @@ export class DreamPass extends ShaderPass {
     this.uniforms.uFlash!.value = v;
   }
 
+  /** Higher = more VHS row-glitch (used to intensify during the finale). */
   setWave(v: number): void {
-    this.uniforms.uWave!.value = v;
+    this.uniforms.uGlitch!.value = v;
   }
 }

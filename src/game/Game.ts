@@ -1,14 +1,12 @@
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { CEILING_Y, Ocean, START_XZ, WORLD_CENTER, WORLD_RADIUS, seabedHeight } from './three/Ocean';
 import { PuzzlePieces } from './three/Pieces';
 import { SwimRig } from './three/SwimRig';
 import { DreamPass } from './three/DreamPass';
 import { PIECE_COUNT, createArtwork } from './puzzle';
-import { PHRASES } from './song';
 import { audio } from './audio';
 import { GamepadInput } from './GamepadInput';
 import { FinaleOverlay, Hud, PickupOverlay, SubtitleOverlay, TitleOverlay } from './ui';
@@ -16,19 +14,14 @@ import { FinaleOverlay, Hud, PickupOverlay, SubtitleOverlay, TitleOverlay } from
 type Scene = 'TITLE' | 'SWIM' | 'FINALE';
 
 /** Internal render height; width follows the window's aspect. Low-res on purpose, like DREAM. */
-const RENDER_H = 600;
+const RENDER_H = 480;
 const PICKUP_RADIUS = 6.5;
 const BEACON_RANGE = 170;
-const NEAR_RANGE = 28;
 const IDLE_RESET_MS = 5 * 60 * 1000;
 const LOOK_SENS_PAD = 0.045;
 const TURN_SPEED = 1.6;
-
-const INTRO: [string, number][] = [
-  ['…귀를 기울여 봐요.', 3200],
-  ['바다 어딘가에서, 노래 하나가 부서졌어요.', 3800],
-  ['조각마다 한 소절씩 남아 있어요. 소리가 나는 쪽으로 헤엄쳐요.', 4800],
-];
+const FLICKER_MIN = 7000;
+const FLICKER_RANGE = 9000;
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -37,7 +30,6 @@ function wait(ms: number): Promise<void> {
 export class Game {
   private renderer!: THREE.WebGLRenderer;
   private composer!: EffectComposer;
-  private bloom!: UnrealBloomPass;
   private dream!: DreamPass;
   private ocean!: Ocean;
   private pieces!: PuzzlePieces;
@@ -61,6 +53,7 @@ export class Game {
   private slowUntil = 0;
   private nextBubble = 5;
   private nextWhale = 18;
+  private nextFlicker = FLICKER_MIN + Math.random() * FLICKER_RANGE;
   private edgeWarned = false;
   private runId = 0;
 
@@ -70,7 +63,7 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(1);
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 0.82;
     const canvas = this.renderer.domElement;
     canvas.classList.add('game-canvas');
     host.appendChild(canvas);
@@ -82,8 +75,6 @@ export class Game {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.ocean.scene, this.rig.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(512, RENDER_H), 0.85, 0.85, 0.55);
-    this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
     this.dream = new DreamPass(512, RENDER_H);
     this.composer.addPass(this.dream);
@@ -140,10 +131,7 @@ export class Game {
       }
       if (this.scene === 'SWIM' && e.code.startsWith('Digit')) {
         const i = Number(e.code.slice(5)) - 1;
-        if (i >= 0 && i < PIECE_COUNT && this.collected[i]) {
-          audio.replay(i);
-          this.subtitle.show(PHRASES[i]!.title, 2600);
-        }
+        if (i >= 0 && i < PIECE_COUNT && this.collected[i]) audio.replay(i);
       }
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
@@ -176,16 +164,6 @@ export class Game {
     this.rig.pitch = 0.05;
     const t = performance.now() / 1000;
     this.nextBeacon = this.nextBeacon.map((_, i) => t + 6 + i * 0.6);
-    void this.playIntro(this.runId);
-  }
-
-  private async playIntro(run: number): Promise<void> {
-    await wait(900);
-    for (const [line, ms] of INTRO) {
-      if (run !== this.runId || this.scene !== 'SWIM') return;
-      this.subtitle.show(line, ms - 400);
-      await wait(ms);
-    }
   }
 
   private readInput(dt: number): { x: number; forward: number; up: number } {
@@ -223,7 +201,7 @@ export class Game {
     if (p.y > CEILING_Y) {
       p.y = CEILING_Y;
       if (v.y > 0) v.y = 0;
-      if (!this.edgeWarned) this.subtitle.show('수면은 아직이에요. 노래는 아래에 있어요.', 3000);
+      if (!this.edgeWarned) this.subtitle.show('위로는, 아직 아니야.', 2800);
       this.edgeWarned = true;
     }
     const dx = p.x - WORLD_CENTER.x;
@@ -235,7 +213,7 @@ export class Game {
       p.z = WORLD_CENTER.y + dz * k;
       v.x *= 0.4;
       v.z *= 0.4;
-      if (!this.edgeWarned) this.subtitle.show('더 멀리는 물이 너무 차가워요.', 3000);
+      if (!this.edgeWarned) this.subtitle.show('더 가면, 돌아오지 못해.', 2800);
       this.edgeWarned = true;
     }
   }
@@ -258,21 +236,13 @@ export class Game {
   }
 
   private checkPickups(t: number): void {
-    let nearest = Infinity;
     for (let i = 0; i < PIECE_COUNT; i++) {
       if (this.collected[i]) continue;
-      const d = this.pieces.position(i).distanceTo(this.rig.pos);
-      nearest = Math.min(nearest, d);
-      if (d < PICKUP_RADIUS) {
+      if (this.pieces.position(i).distanceTo(this.rig.pos) < PICKUP_RADIUS) {
         this.collect(i, t);
         return;
       }
     }
-    const count = this.collected.filter(Boolean).length;
-    if (t < this.slowUntil) this.hud.setHint('');
-    else if (nearest < NEAR_RANGE) this.hud.setHint('가까워요… 빛 속으로 들어가요');
-    else if (count === 0) this.hud.setHint('조각의 노래가 들리는 쪽으로 헤엄쳐요');
-    else this.hud.setHint('');
   }
 
   private collect(i: number, t: number): void {
@@ -297,7 +267,7 @@ export class Game {
     this.rig.enabled = false;
     this.rig.releaseLock();
     this.hud.setVisible(false);
-    this.subtitle.show('여섯 조각이 모두 모였어요. 이제, 처음부터 끝까지 들어요.', 4200);
+    this.subtitle.show('전부 모였다. 이제, 끝까지 들어.', 3600);
     audio.setAmbience(0.45, 5);
     await wait(4600);
     if (run !== this.runId) return;
@@ -364,6 +334,10 @@ export class Game {
         this.nextWhale = t + 35 + Math.random() * 30;
         audio.whale();
       }
+      if (t > this.nextFlicker) {
+        this.nextFlicker = t + FLICKER_MIN + Math.random() * FLICKER_RANGE;
+        this.doFlicker();
+      }
     }
 
     this.ocean.update(t, this.rig.camera);
@@ -372,8 +346,16 @@ export class Game {
     this.flash = Math.max(0, this.flash - dt * 0.8);
     this.dream.setFlash(this.flash);
     this.dream.setTime(t);
-    this.dream.setWave(this.scene === 'FINALE' ? 1.8 : 1);
+    this.dream.setWave(this.scene === 'FINALE' ? 2.4 : 1);
     this.composer.render(dt);
+  }
+
+  /** A brief, unnatural strobe — the light flickering somewhere it shouldn't. */
+  private doFlicker(): void {
+    const canvas = this.renderer.domElement;
+    canvas.classList.add('flicker-burst');
+    audio.bubble();
+    window.setTimeout(() => canvas.classList.remove('flicker-burst'), 130 + Math.random() * 120);
   }
 
   softReset(): void {
@@ -385,7 +367,6 @@ export class Game {
     this.pieces.reset();
     this.hud.update(this.collected);
     this.hud.setVisible(false);
-    this.hud.setHint('');
     this.pickup.hide();
     this.finale.close();
     this.subtitle.hide();
